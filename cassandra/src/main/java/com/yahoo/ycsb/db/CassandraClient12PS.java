@@ -50,6 +50,10 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 		PreparedStatement pStmt = preparedStatements.get(cacheKey);
 
 		if (pStmt == null) {
+			if (_debug) {
+				System.out.println("Creating statement: " + cacheKey);
+			}
+			
 			String query = "SELECT ";
 			if (fields != null) {
 				query += Joiner.on(',').join(fields) + " ";
@@ -61,6 +65,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 
 			pStmt = session.prepare(query);
 			preparedStatements.put(cacheKey, pStmt);
+		} else if (_debug) {
+			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind();
 		bndStmt.setConsistencyLevel(readConsistencyLevel);
@@ -79,6 +85,10 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 		PreparedStatement pStmt = preparedStatements.get(cacheKey);
 
 		if (pStmt == null) {
+			if (_debug) {
+				System.out.println("Creating statement: " + cacheKey);
+			}
+			
 			String query = "SELECT ";
 			if (fields != null) {
 				String fieldsQuery = Joiner.on(',').join(fields);
@@ -92,6 +102,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 
 			pStmt = session.prepare(query);
 			preparedStatements.put(cacheKey, pStmt);
+		} else if (_debug) {
+			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind();
 		bndStmt.setConsistencyLevel(scanConsistencyLevel);
@@ -156,6 +168,9 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 		String cacheKey = getInsertCacheKey(table, fields);
 		PreparedStatement pStmt = preparedStatements.get(cacheKey);
 		if (pStmt == null) {
+			if (_debug) {
+				System.out.println("Creating statement: " + cacheKey);
+			}
 			StringBuilder insertQuery = new StringBuilder("INSERT INTO " + table + "(" + _keyColumnName + ",");
 			insertQuery.append(Joiner.on(',').join(fields));
 			insertQuery.append(") VALUES (?,");
@@ -163,6 +178,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			insertQuery.append(")");
 			pStmt = session.prepare(insertQuery.toString());
 			preparedStatements.put(cacheKey, pStmt);
+		} else if (_debug) {
+			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind();
 		bndStmt.setConsistencyLevel(writeConsistencyLevel);

@@ -28,10 +28,10 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ColumnDefinitions.Definition;
 import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.ProtocolOptions.Compression;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SimpleAuthInfoProvider;
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
@@ -130,12 +130,11 @@ public abstract class AbstractCassandraClient12 extends DB {
 			try {
 				Builder clusterBuilder = new Cluster.Builder().addContactPoints(allhosts);
 				if (username != null && password != null) {
-					SimpleAuthInfoProvider authInfoProvider = new SimpleAuthInfoProvider();
-					authInfoProvider.add("username", username);
-					authInfoProvider.add("password", password);
-					clusterBuilder.withAuthInfoProvider(authInfoProvider);
+					clusterBuilder.withCredentials(username, password);
 				}
-
+				clusterBuilder.withCompression(Compression.SNAPPY);
+				clusterBuilder.withoutMetrics();
+				clusterBuilder.withoutJMXReporting();
 				Cluster cluster = clusterBuilder.build();
 				session = cluster.connect();
 				session.execute("USE " + _keyspace);

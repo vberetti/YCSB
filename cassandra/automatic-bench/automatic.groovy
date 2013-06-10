@@ -1,17 +1,19 @@
-private boolean verbose = false;
 
-private String YCSB_PATH = '.';
-private String RESULTS_PATH = '.';
+verbose = true;
+
+CASSANDRA_HOME='/work/tools/cassandra/current'
+YCSB_PATH = '/work/sources/ycsb/YCSB';
+WORKLOAD_PATH = "$YCSB_PATH/workloads";
+RESULTS_PATH = '.';
 // comma separated list of hosts
-private String HOSTS='127.0.0.1'
+HOSTS='127.0.0.1'
 
-private String YCSB_HOSTS_OPTIONS = " -p $HOSTS "
-private String YCSB_FAILFAST_OPTIONS = ' -p cassandra.operationretries=2 -p cassandra.connectionretries=2 ';
+YCSB_HOSTS_OPTIONS = " -p hosts=$HOSTS -p cassandra.compression=true "
+YCSB_FAILFAST_OPTIONS = ' -p cassandra.operationretries=2 -p cassandra.connectionretries=2 ';
 
-
-private String[] CREATION_FILES = {};
-private String[] WORKLOADS = {};
-private String[] DRIVERS = {};
+CREATION_FILES = ['','index'];
+WORKLOADS = ["workloada","workloadb","workloadc","workloadd","workloadf","workloadlongread","workloadlonginsert","workloadlongrw"];
+DRIVERS = ["cassandra-10","cassandra-12-ps"];
 
 for(String creationFileSuffix : CREATION_FILES){
     for(String workload : WORKLOADS){
@@ -21,7 +23,7 @@ for(String creationFileSuffix : CREATION_FILES){
     }
 }
 
-public void bench(String executionName, String workloadName, String driver, String creationFileSuffix){
+def void bench(String executionName, String workloadName, String driver, String creationFileSuffix){
     cleanDatabase();
     importSchemaDatabase(creationFileSuffix);
     clearCaches();
@@ -31,59 +33,64 @@ public void bench(String executionName, String workloadName, String driver, Stri
 
 
 /*         NODETOOL           */
-public void clearCaches(){
-    def process = executeCommand("$CASSANDRA_HOME/bin/nodetool invalidatekeycache ");
-    process = executeCommand("$CASSANDRA_HOME/bin/nodetool invalidaterowcache ");
+def void clearCaches(){
+    def process = executeCommand("${CASSANDRA_HOME}/bin/nodetool invalidatekeycache ",true, null);
+    process = executeCommand("${CASSANDRA_HOME}/bin/nodetool invalidaterowcache ", true, null);
 }
 
 /*         CQLSH              */
-public void cleanDatabase(){
+def void cleanDatabase(){
     def process = executeCQLSH('drop-keyspace.cql');
 }
 
-public void importSchemaDatabase(String creationFileSuffix){
+def void importSchemaDatabase(String creationFileSuffix){
     def process = executeCQLSH("creation${creationFileSuffix}.cql");
 }
 
-public void executeCQLSH(String file){
-    def process = executeCommand("$CASSANDRA_HOME/bin/cqlsh.sh -f $file");
+def void executeCQLSH(String file){
+    def process = executeCommand("$CASSANDRA_HOME/bin/cqlsh -f $file", true, null);
 }
 
 /*         YCSB               */
-public void runYCSB(String executionName, String workloadName, String driver){
+def void runYCSB(String executionName, String workloadName, String driver){
    def process = executeYCSB('run', executionName, workloadName, driver);
 }
 
-public void loadYCSB(String executionName, String workloadName, String driver){
+def void loadYCSB(String executionName, String workloadName, String driver){
     def process = executeYCSB('load', executionName, workloadName, driver);
 }
 
 
-public def executeYCSB(String ycsbCommand, String executionName, String workloadName, String driver){
-    String timestamp = date.format('yyyy-MM-dd-hh-mm');
-    def command = "$YCSB_PATH/bin/ycsb $ycsbCommand $driver -P $YCSB_PATH/$workloadName $YCSB_HOSTS_OPTIONS $YCSB_FAILFAST_OPTIONS > ${RESULTS_PATH}/${executionName}_${ycsbCommand}_${timestamp}.txt");
+def executeYCSB(String ycsbCommand, String executionName, String workloadName, String driver){
+    String timestamp = new Date().format('yyyy-MM-dd-hh-mm');
+    def command = "${YCSB_PATH}/bin/ycsb ${ycsbCommand} ${driver} -P ${WORKLOAD_PATH}/${workloadName} ${YCSB_HOSTS_OPTIONS} ${YCSB_FAILFAST_OPTIONS}"
+    //>> ${RESULTS_PATH}/${executionName}_${ycsbCommand}_${timestamp}.txt";
 
-    return executeCommand(command, true);
+    return executeCommand(command, false, "${RESULTS_PATH}/${executionName}_${ycsbCommand}_${timestamp}.out");
 }
 
-protected def executeCommand(String commandLabel, boolean discardOutput) {
+
+def executeCommand(String commandLabel) {
+    executeCommand(commandLabel, true, null)
+}
+def executeCommand(String commandLabel, boolean discardOutput, String outputFile) {
     def processOutput = [:]
     if (verbose) {
-        printOut.println '[DEBUG] executing command \'' + commandLabelToPrint + '\''
+        println '[DEBUG] executing command \'' + commandLabel + '\''
     }
     def process = commandLabel.execute()
 
-    def outBuffer = new ByteArrayOutputStream()
-    def errBuffer = new ByteArrayOutputStream()
 
     if(discardOutput){
         if (verbose){
-            process.consumeProcessOutput(printOut, printOut)
+            process.consumeProcessOutput(System.out, System.err)
         } else {
             // discard output, see http://groovy.codehaus.org/groovy-jdk/java/lang/Process.html#consumeProcessOutput()
             process.consumeProcessOutput();
         }
     }else{
+        def outBuffer = new FileOutputStream(outputFile)
+        def errBuffer = new FileOutputStream(outputFile+'-err')
         process.consumeProcessOutput(outBuffer, errBuffer)
     }
 
@@ -91,14 +98,14 @@ protected def executeCommand(String commandLabel, boolean discardOutput) {
 
     if (verbose) {
         if(!discardOutput){
-            printOut.println outBuffer.toString()
-            printOut.println errBuffer.toString()
+            //println outBuffer.toString()
+            //println errBuffer.toString()
         }
-        printOut.println '[DEBUG] exit value : ' + process.exitValue()
+        println '[DEBUG] exit value : ' + process.exitValue()
     }
     processOutput.exitValue = process.exitValue()
-    processOutput.inText = outBuffer.toString()
-    processOutput.inErrText = errBuffer.toString()
+    //processOutput.inText = outBuffer.toString()
+    //processOutput.inErrText = errBuffer.toString()
 
     return processOutput
 }

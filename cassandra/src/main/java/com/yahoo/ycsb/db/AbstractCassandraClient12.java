@@ -81,6 +81,9 @@ public abstract class AbstractCassandraClient12 extends DB {
 	public static final String DELETE_CONSISTENCY_LEVEL_PROPERTY = "cassandra.deleteconsistencylevel";
 	public static final String DELETE_CONSISTENCY_LEVEL_PROPERTY_DEFAULT = "ONE";
 
+	public static final String COMPRESSION_PROPERTY = "cassandra.compression";
+	public static final String COMPRESSION_PROPERTY_DEFAULT = "false";
+
 	Session session;
 
 	boolean _debug = false;
@@ -111,6 +114,8 @@ public abstract class AbstractCassandraClient12 extends DB {
 
 		String username = getProperties().getProperty(USERNAME_PROPERTY);
 		String password = getProperties().getProperty(PASSWORD_PROPERTY);
+		
+		boolean compression = Boolean.parseBoolean(getProperties().getProperty(COMPRESSION_PROPERTY, COMPRESSION_PROPERTY_DEFAULT));
 
 		readConsistencyLevel = ConsistencyLevel.valueOf(getProperties().getProperty(READ_CONSISTENCY_LEVEL_PROPERTY,
 				READ_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
@@ -132,9 +137,16 @@ public abstract class AbstractCassandraClient12 extends DB {
 				if (username != null && password != null) {
 					clusterBuilder.withCredentials(username, password);
 				}
-				clusterBuilder.withCompression(Compression.SNAPPY);
+				
+				if (compression) {
+					clusterBuilder.withCompression(Compression.SNAPPY);
+				} else {
+					clusterBuilder.withCompression(Compression.NONE);
+				}
+				
 				clusterBuilder.withoutMetrics();
 				clusterBuilder.withoutJMXReporting();
+				
 				Cluster cluster = clusterBuilder.build();
 				session = cluster.connect();
 				session.execute("USE " + _keyspace);
@@ -178,7 +190,7 @@ public abstract class AbstractCassandraClient12 extends DB {
 
 			try {
 				if (_debug) {
-					System.out.print("Reading key: " + key);
+					System.out.print("Reading key : " + key);
 				}
 
 				ResultSet resultSet = read(table, key, fields);

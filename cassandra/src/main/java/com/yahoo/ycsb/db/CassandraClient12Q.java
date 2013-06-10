@@ -78,7 +78,7 @@ public class CassandraClient12Q extends AbstractCassandraClient12 {
 		@Override
 		@Nullable
 		public String apply(@Nullable Map.Entry<String, ByteIterator> item) {
-			return " " + item.getKey() + " = '"+item.getValue()+"' ";
+			return " " + item.getKey() + " = '"+item.getValue().toString().replaceAll("\'", "\'\'")+"' ";
 		}
 	};
 
@@ -88,7 +88,7 @@ public class CassandraClient12Q extends AbstractCassandraClient12 {
 			insertQuery.append(Joiner.on(',').join(values.keySet()));
 			insertQuery.append(") VALUES ('"+key+"',");
 			insertQuery.append(Joiner.on(',').join(transform(values.values(), valueInsertFunction)));
-			insertQuery.append(")");
+			insertQuery.append(");");
 			session.execute(insertQuery.toString());
 	}
 	
@@ -96,7 +96,7 @@ public class CassandraClient12Q extends AbstractCassandraClient12 {
 		@Override
 		@Nullable
 		public String apply(@Nullable ByteIterator item) {
-			return "'"+item.toString()+"'";
+			return "'"+item.toString().replaceAll("\'", "\'\'")+"'";
 		}
 	};
 

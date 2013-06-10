@@ -68,9 +68,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 		} else if (_debug) {
 			System.out.println("Reusing statement: " + cacheKey);
 		}
-		BoundStatement bndStmt = pStmt.bind();
+		BoundStatement bndStmt = pStmt.bind(key);
 		bndStmt.setConsistencyLevel(readConsistencyLevel);
-		bndStmt.setString(0, key);
 
 		return session.execute(bndStmt);
 	}
@@ -105,9 +104,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 		} else if (_debug) {
 			System.out.println("Reusing statement: " + cacheKey);
 		}
-		BoundStatement bndStmt = pStmt.bind();
+		BoundStatement bndStmt = pStmt.bind(startkey);
 		bndStmt.setConsistencyLevel(scanConsistencyLevel);
-		bndStmt.setString(0, startkey);
 
 		return session.execute(bndStmt);
 	}
@@ -209,9 +207,8 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			pStmt = session.prepare(query);
 			preparedStatements.put(cacheKey, pStmt);
 		}
-		BoundStatement bndStmt = pStmt.bind();
+		BoundStatement bndStmt = pStmt.bind(key);
 		bndStmt.setConsistencyLevel(scanConsistencyLevel);
-		bndStmt.setString(0, key);
 
 		session.execute(bndStmt);
 	}

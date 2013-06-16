@@ -40,7 +40,7 @@ import com.yahoo.ycsb.ByteIterator;
 /**
  * Cassandra CQL3 Binary Protocol client for YCSB framework with PreparedStatements
  */
-public class CassandraClient12PS extends AbstractCassandraClient12 {
+public class CassandraJavaDriverClientPS extends AbstractCassandraJavaDriverClient {
 
 	Map<String, PreparedStatement> preparedStatements = new HashMap<String, PreparedStatement>();
 
@@ -69,7 +69,7 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind(key);
-		bndStmt.setConsistencyLevel(readConsistencyLevel);
+		bndStmt.setConsistencyLevel(toDriverConsistencyLevel(readConsistencyLevel));
 
 		return session.execute(bndStmt);
 	}
@@ -105,7 +105,7 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind(startkey);
-		bndStmt.setConsistencyLevel(scanConsistencyLevel);
+		bndStmt.setConsistencyLevel(toDriverConsistencyLevel(scanConsistencyLevel));
 
 		return session.execute(bndStmt);
 	}
@@ -128,7 +128,7 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			preparedStatements.put(cacheKey, pStmt);
 		}
 		BoundStatement bndStmt = pStmt.bind();
-		bndStmt.setConsistencyLevel(writeConsistencyLevel);
+		bndStmt.setConsistencyLevel(toDriverConsistencyLevel(writeConsistencyLevel));
 
 		int bndIndex = 0;
 		for (String field : fields) {
@@ -180,7 +180,7 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			System.out.println("Reusing statement: " + cacheKey);
 		}
 		BoundStatement bndStmt = pStmt.bind();
-		bndStmt.setConsistencyLevel(writeConsistencyLevel);
+		bndStmt.setConsistencyLevel(toDriverConsistencyLevel(writeConsistencyLevel));
 
 		int bndIndex = 0;
 		bndStmt.setString(bndIndex, key);
@@ -208,7 +208,7 @@ public class CassandraClient12PS extends AbstractCassandraClient12 {
 			preparedStatements.put(cacheKey, pStmt);
 		}
 		BoundStatement bndStmt = pStmt.bind(key);
-		bndStmt.setConsistencyLevel(scanConsistencyLevel);
+		bndStmt.setConsistencyLevel(toDriverConsistencyLevel(deleteConsistencyLevel));
 
 		session.execute(bndStmt);
 	}

@@ -24,10 +24,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
 
+import org.apache.cassandra.db.ConsistencyLevel;
+
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ColumnDefinitions.Definition;
-import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.ProtocolOptions.Compression;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
@@ -40,7 +41,7 @@ import com.yahoo.ycsb.StringByteIterator;
 /**
  * Cassandra CQL3 Binary Protocol client for YCSB framework
  */
-public abstract class AbstractCassandraClient12 extends DB {
+public abstract class AbstractCassandraJavaDriverClient extends DB {
 	static Random random = new Random();
 	public static final int Ok = 0;
 	public static final int Error = -1;
@@ -414,5 +415,10 @@ public abstract class AbstractCassandraClient12 extends DB {
 	}
 
 	protected abstract void innerDelete(String table, String key);
+	
+	
+	public static com.datastax.driver.core.ConsistencyLevel toDriverConsistencyLevel(ConsistencyLevel consistencyLevel){
+	    return com.datastax.driver.core.ConsistencyLevel.valueOf(consistencyLevel.name());
+	}
 
 }

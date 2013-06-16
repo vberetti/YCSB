@@ -2,7 +2,7 @@ package com.yahoo.ycsb.db;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static com.google.common.collect.Sets.newHashSet;
-import static com.yahoo.ycsb.db.AbstractCassandraClient12.Ok;
+import static com.yahoo.ycsb.db.AbstractCassandraJavaDriverClient.Ok;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,7 +14,7 @@ import com.yahoo.ycsb.StringByteIterator;
 
 public class CassandraClient12Simulation {
 
-	private static AbstractCassandraClient12 cli = new CassandraClient12PS();
+	private static AbstractCassandraJavaDriverClient cli = new CassandraJavaDriverClientPS();
 	
 	public static void main(String[] args) {
 

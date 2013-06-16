@@ -40,7 +40,7 @@ import com.yahoo.ycsb.ByteIterator;
 /**
  * Cassandra CQL3 Binary Protocol client for YCSB framework with QueryBuilder
  */
-public class CassandraClient12QB extends AbstractCassandraClient12 {
+public class CassandraJavaDriverClientQB extends AbstractCassandraJavaDriverClient {
 
 	@Override
 	protected ResultSet read(String table, String key, Set<String> fields) {
@@ -52,7 +52,7 @@ public class CassandraClient12QB extends AbstractCassandraClient12 {
 		}
 		Select select = selection.from(_keyspace, _columnFamily);
 		select.where(QueryBuilder.eq(_keyColumnName, key));
-		select.setConsistencyLevel(readConsistencyLevel);
+		select.setConsistencyLevel(toDriverConsistencyLevel(readConsistencyLevel));
 
 		return session.execute(select);
 	}
@@ -68,7 +68,7 @@ public class CassandraClient12QB extends AbstractCassandraClient12 {
 		Select select = selection.from(_keyspace,_columnFamily);
 		select.where(QueryBuilder.gte(_keyColumnName, startkey));
 		select.limit(recordcount);
-		select.setConsistencyLevel(readConsistencyLevel);
+		select.setConsistencyLevel(toDriverConsistencyLevel(readConsistencyLevel));
 
 		return session.execute(select);
 	}
@@ -83,7 +83,7 @@ public class CassandraClient12QB extends AbstractCassandraClient12 {
 		}
 
 		update.where(eq(_keyColumnName, key));
-		update.setConsistencyLevel(writeConsistencyLevel);
+		update.setConsistencyLevel(toDriverConsistencyLevel(writeConsistencyLevel));
 		
 		session.execute(update);
 	}
@@ -103,7 +103,7 @@ public class CassandraClient12QB extends AbstractCassandraClient12 {
 		for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
 			insert.value(entry.getKey(), entry.getValue().toString());
 		}
-		insert.setConsistencyLevel(writeConsistencyLevel);
+		insert.setConsistencyLevel(toDriverConsistencyLevel(writeConsistencyLevel));
 		session.execute(insert);
 	}
 
@@ -111,7 +111,7 @@ public class CassandraClient12QB extends AbstractCassandraClient12 {
 	protected void innerDelete(String table, String key) {
 		Delete delete = QueryBuilder.delete().from(_keyspace, _columnFamily);
 		delete.where(eq(_keyColumnName, key));
-		delete.setConsistencyLevel(deleteConsistencyLevel);
+		delete.setConsistencyLevel(toDriverConsistencyLevel(deleteConsistencyLevel));
 		
 		session.execute(delete);		
 	}

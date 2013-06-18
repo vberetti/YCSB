@@ -32,6 +32,7 @@ DATABASES = {
     "cassandra-java-driver-ps" : "com.yahoo.ycsb.db.CassandraJavaDriverClientPS",
     "cassandra-java-driver-q"  : "com.yahoo.ycsb.db.CassandraJavaDriverClientQ",
     "cassandra-thrift-cql"  : "com.yahoo.ycsb.db.CassandraClientThriftCQL3",
+    "cassandra-hector"  : "com.yahoo.ycsb.db.CassandraHectorClient",
     "dynamodb"     : "com.yahoo.ycsb.db.DynamoDBClient",
     "elasticsearch": "com.yahoo.ycsb.db.ElasticSearchClient",
     "gemfire"      : "com.yahoo.ycsb.db.GemFireClient",

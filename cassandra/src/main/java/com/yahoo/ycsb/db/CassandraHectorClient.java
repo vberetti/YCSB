@@ -1,34 +1,36 @@
 package com.yahoo.ycsb.db;
 
+import static com.google.common.collect.Maps.newHashMap;
+
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
 
+import me.prettyprint.cassandra.serializers.StringSerializer;
+import me.prettyprint.cassandra.service.CassandraHostConfigurator;
+import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
+import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
+import me.prettyprint.cassandra.service.template.ColumnFamilyUpdater;
+import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
+import me.prettyprint.hector.api.Cluster;
+import me.prettyprint.hector.api.Keyspace;
+import me.prettyprint.hector.api.factory.HFactory;
+
 import org.apache.cassandra.db.ConsistencyLevel;
-import org.apache.cassandra.thrift.AuthenticationRequest;
-import org.apache.cassandra.thrift.Cassandra;
-import org.apache.cassandra.thrift.Column;
 import org.apache.cassandra.thrift.ColumnParent;
 import org.apache.cassandra.thrift.Compression;
-import org.apache.cassandra.thrift.CqlResult;
-import org.apache.cassandra.thrift.CqlRow;
 import org.apache.commons.lang.NotImplementedException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TFramedTransport;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
 
-import com.google.common.collect.Iterables;
 import com.yahoo.ycsb.ByteArrayByteIterator;
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 
-public class CassandraClientThriftCQL3 extends DB{
+public class CassandraHectorClient extends DB{
     
     static Random random = new Random();
     public static final int Ok = 0;
@@ -68,9 +70,10 @@ public class CassandraClientThriftCQL3 extends DB{
     
     public static final String COMPRESSION_PROPERTY = "cassandra.compression";
     public static final String COMPRESSION_PROPERTY_DEFAULT = "false";
-
-    TTransport tr;
-    Cassandra.Client client;
+    
+    Cluster cluster;
+    Keyspace ksp;
+    ColumnFamilyTemplate<String, String> template;
 
     boolean _debug = false;
 
@@ -129,13 +132,19 @@ public class CassandraClientThriftCQL3 extends DB{
 
       for (int retry = 0; retry < ConnectionRetries; retry++)
       {
-        tr = new TFramedTransport(new TSocket(myhost, 9160));
-        TProtocol proto = new TBinaryProtocol(tr);
-        client = new Cassandra.Client(proto);
+
         try
         {
-          tr.open();
-          connectexception = null;
+            if (username != null && password != null)
+            {
+                Map<String,String> cred = newHashMap();
+                cred.put("username", username);
+                cred.put("password", password);
+                CassandraHostConfigurator hostConfig = new CassandraHostConfigurator(myhost+":9160");
+                cluster = HFactory.getOrCreateCluster("test-cluster", hostConfig, cred);
+            }else{
+                cluster = HFactory.getOrCreateCluster("test-cluster", myhost+":9160");
+            }
           break;
         } catch (Exception e)
         {
@@ -155,21 +164,6 @@ public class CassandraClientThriftCQL3 extends DB{
         throw new DBException(connectexception);
       }
 
-      if (username != null && password != null)
-      {
-          Map<String,String> cred = new HashMap<String,String>();
-          cred.put("username", username);
-          cred.put("password", password);
-          AuthenticationRequest req = new AuthenticationRequest(cred);
-          try
-          {
-              client.login(req);
-          }
-          catch (Exception e)
-          {
-              throw new DBException(e);
-          }
-      }
     }
 
     /**
@@ -178,7 +172,6 @@ public class CassandraClientThriftCQL3 extends DB{
      */
     public void cleanup() throws DBException
     {
-      tr.close();
     }
 
     /**
@@ -200,8 +193,7 @@ public class CassandraClientThriftCQL3 extends DB{
       if (!_table.equals(table)) {
         try
         {
-          client.set_keyspace(table);
-          _table = table;
+            initTemplate(table);
         }
         catch (Exception e)
         {
@@ -216,35 +208,30 @@ public class CassandraClientThriftCQL3 extends DB{
 
         try
         {
-            String query = QueryHelper.readQuery(table, _keyColumnName, key, fields, readConsistencyLevel);
-            CqlResult rows = client.execute_cql3_query(ByteBuffer.wrap(query.getBytes("UTF-8")), compression, toThriftConsistencyLevel(readConsistencyLevel));
+            ColumnFamilyResult<String, String> cfResult = template.queryColumns(key);
 
           if (_debug)
           {
             System.out.print("Reading key: " + key);
           }
 
-          String name;
           ByteIterator value;
-          CqlRow row = Iterables.getFirst(rows.getRows(), null);
-          if(row != null)
+          if(cfResult != null)
           {
         	  
-              for(Column column : row.getColumns()){
+              for(String columnName : cfResult.getColumnNames()){
                   
-                  name = new String(column.name.array(), column.name.position()+column.name.arrayOffset(), column.name.remaining());
-                  
-                  if(column.value != null){
-                	  value = new ByteArrayByteIterator(column.value.array(), column.value.position()+column.value.arrayOffset(), column.value.remaining());
+                  if(cfResult.getByteArray(columnName) != null){
+                	  value = new ByteArrayByteIterator(cfResult.getByteArray(columnName));
                   }else{
                 	  value=new ByteArrayByteIterator(new byte[0]);
                   }
 
-                  result.put(name,value);
+                  result.put(columnName, value);
 
                   if (_debug)
                   {
-                    System.out.print("(" + name + "=" + value + ")");
+                    System.out.print("(" + columnName + "=" + value + ")");
                   }
               }
 
@@ -316,8 +303,7 @@ public class CassandraClientThriftCQL3 extends DB{
         if (!_table.equals(table)) {
             try
             {
-              client.set_keyspace(table);
-              _table = table;
+                initTemplate(table);
             }
             catch (Exception e)
             {
@@ -336,8 +322,11 @@ public class CassandraClientThriftCQL3 extends DB{
 
             try
             {
-              String query = QueryHelper.updateQuery(table, _keyColumnName, key, values, writeConsistencyLevel);
-              client.execute_cql3_query(ByteBuffer.wrap(query.getBytes("UTF-8")), compression, toThriftConsistencyLevel(writeConsistencyLevel));
+            	ColumnFamilyUpdater<String, String> updater = template.createUpdater(key);
+                for(Entry<String, ByteIterator> value: values.entrySet()){
+                    updater.setByteArray(value.getKey(), value.getValue().toArray());
+                }
+                template.update(updater);
 
               if (_debug)
               {
@@ -380,8 +369,7 @@ public class CassandraClientThriftCQL3 extends DB{
       if (!_table.equals(table)) {
         try
         {
-          client.set_keyspace(table);
-          _table = table;
+            initTemplate(table);
         }
         catch (Exception e)
         {
@@ -400,8 +388,11 @@ public class CassandraClientThriftCQL3 extends DB{
 
         try
         {
-          String query = QueryHelper.insertQuery(table, _keyColumnName, key, values, writeConsistencyLevel);
-          client.execute_cql3_query(ByteBuffer.wrap(query.getBytes("UTF-8")), compression, toThriftConsistencyLevel(writeConsistencyLevel));
+            ColumnFamilyUpdater<String, String> updater = template.createUpdater(key);
+            for(Entry<String, ByteIterator> value: values.entrySet()){
+                updater.setByteArray(value.getKey(), value.getValue().toArray());
+            }
+            template.update(updater);
 
           if (_debug)
           {
@@ -440,8 +431,7 @@ public class CassandraClientThriftCQL3 extends DB{
       if (!_table.equals(table)) {
         try
         {
-          client.set_keyspace(table);
-          _table = table;
+            initTemplate(table);
         }
         catch (Exception e)
         {
@@ -455,9 +445,7 @@ public class CassandraClientThriftCQL3 extends DB{
       {
         try
         {
-            
-            String query = QueryHelper.deleteQuery(table, _keyColumnName, key, deleteConsistencyLevel);
-            client.execute_cql3_query(ByteBuffer.wrap(query.getBytes("UTF-8")), compression, toThriftConsistencyLevel(deleteConsistencyLevel));
+            template.deleteRow(key);
 
           if (_debug)
           {
@@ -481,7 +469,17 @@ public class CassandraClientThriftCQL3 extends DB{
       errorexception.printStackTrace(System.out);
       return Error;
     }
-    
+
+
+    private void initTemplate(String table) {
+        ksp = HFactory.createKeyspace(table, cluster);
+        template =
+                new ThriftColumnFamilyTemplate<String, String>(ksp,
+                                                               column_family,
+                                                               StringSerializer.get(),
+                                                               StringSerializer.get());
+        _table = table;
+    }
     
     public static org.apache.cassandra.thrift.ConsistencyLevel toThriftConsistencyLevel(ConsistencyLevel consistencyLevel){
         return org.apache.cassandra.thrift.ConsistencyLevel.valueOf(consistencyLevel.name());
